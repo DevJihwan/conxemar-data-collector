@@ -1,0 +1,31 @@
+{
+  "name": "conxemar-data-collector",
+  "version": "1.0.0",
+  "description": "Conxemar 박람회 데이터 수집 및 Ambiente 양식 변환 도구",
+  "main": "conxemar_scraper.js",
+  "scripts": {
+    "start": "node conxemar_scraper.js",
+    "collect": "node conxemar_scraper.js",
+    "format": "node ambiente_formatter.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "xlsx": "^0.18.5"
+  },
+  "keywords": [
+    "conxemar",
+    "ambiente",
+    "exhibition",
+    "data-collection",
+    "excel",
+    "api-scraping",
+    "trade-show"
+  ],
+  "author": "DevJihwan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DevJihwan/conxemar-data-collector.git"
+  }
+}
