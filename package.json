@@ -7,12 +7,14 @@
     "start": "node conxemar_scraper.js",
     "collect": "node conxemar_scraper.js",
     "format": "node ambiente_formatter.js",
+    "analyze": "node template_analyzer.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "axios": "^1.6.0",
     "xlsx": "^0.18.5"
   },
+  "devDependencies": {},
   "keywords": [
     "conxemar",
     "ambiente",
@@ -20,12 +22,17 @@
     "data-collection",
     "excel",
     "api-scraping",
-    "trade-show"
+    "trade-show",
+    "data-transformation"
   ],
   "author": "DevJihwan",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/DevJihwan/conxemar-data-collector.git"
-  }
+  },
+  "bugs": {
+    "url": "https://github.com/DevJihwan/conxemar-data-collector/issues"
+  },
+  "homepage": "https://github.com/DevJihwan/conxemar-data-collector#readme"
 }
