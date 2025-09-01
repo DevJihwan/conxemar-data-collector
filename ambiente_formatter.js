@@ -3,7 +3,7 @@ const fs = require('fs').promises;
 
 class ConxemarToAmbienteFormatter {
     constructor() {
-        // Ambiente 2025 기준 양식 (일반적인 국제 박람회 양식)
+        // Ambiente 2025 기준 양식 (실제 파일 분석 후 업데이트 예정)
         this.ambienteHeaders = [
             'Company Name',
             'Stand Number', 
@@ -27,6 +27,46 @@ class ConxemarToAmbienteFormatter {
         ];
         
         this.sourceData = null;
+        this.actualTemplateHeaders = null;
+    }
+
+    // 실제 기준 양식 파일 분석
+    async analyzeTemplateFile(templatePath = 'Ambiente 2025 Exhibitor 리스트.xlsx') {
+        try {
+            console.log('기준 양식 파일 분석 중...');
+            const templateBuffer = await fs.readFile(templatePath);
+            const templateWorkbook = XLSX.read(templateBuffer, {
+                cellStyles: true,
+                cellFormulas: true,
+                cellDates: true,
+                cellNF: true,
+                sheetStubs: true
+            });
+
+            const sheetName = templateWorkbook.SheetNames[0];
+            const worksheet = templateWorkbook.Sheets[sheetName];
+            const templateData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            
+            // 실제 헤더로 업데이트
+            this.actualTemplateHeaders = templateData[0] || [];
+            this.ambienteHeaders = this.actualTemplateHeaders;
+            
+            console.log(`✅ 기준 양식 분석 완료`);
+            console.log(`시트명: ${sheetName}`);
+            console.log(`헤더 수: ${this.actualTemplateHeaders.length}`);
+            console.log('실제 헤더:', this.actualTemplateHeaders);
+            
+            return {
+                sheetName,
+                headers: this.actualTemplateHeaders,
+                sampleData: templateData.slice(1, 3),
+                totalRows: templateData.length
+            };
+        } catch (error) {
+            console.warn('⚠️  기준 양식 파일을 찾을 수 없습니다. 기본 양식을 사용합니다.');
+            console.warn('오류:', error.message);
+            return null;
+        }
     }
 
     // Conxemar 수집 데이터 로드
@@ -39,6 +79,12 @@ class ConxemarToAmbienteFormatter {
             this.sourceData = XLSX.utils.sheet_to_json(worksheet);
             
             console.log(`Conxemar 데이터 로드 완료: ${this.sourceData.length}개 기업`);
+            
+            // 수집된 데이터의 구조 출력
+            if (this.sourceData.length > 0) {
+                console.log('수집된 데이터 필드:', Object.keys(this.sourceData[0]));
+            }
+            
             return this.sourceData;
         } catch (error) {
             console.error('Conxemar 데이터 로드 실패:', error.message);
@@ -104,34 +150,149 @@ class ConxemarToAmbienteFormatter {
         return url;
     }
 
+    // 스마트 필드 매핑 (기준 양식 헤더에 따라 동적 매핑)
+    createFieldMapping() {
+        const mapping = {};
+        
+        this.ambienteHeaders.forEach(header => {
+            if (!header) return;
+            
+            const lowerHeader = header.toLowerCase();
+            
+            // 회사명 관련
+            if (lowerHeader.includes('company') && lowerHeader.includes('name')) {
+                mapping[header] = '회사명';
+            }
+            // 부스번호 관련
+            else if (lowerHeader.includes('stand') || lowerHeader.includes('booth')) {
+                mapping[header] = '부스번호';
+            }
+            // 국가 관련
+            else if (lowerHeader.includes('country')) {
+                mapping[header] = '국가';
+            }
+            // 도시 관련
+            else if (lowerHeader.includes('city')) {
+                mapping[header] = '도시';
+            }
+            // 주소 관련
+            else if (lowerHeader.includes('address')) {
+                mapping[header] = '주소';
+            }
+            // 우편번호 관련
+            else if (lowerHeader.includes('postal') || lowerHeader.includes('zip')) {
+                mapping[header] = '우편번호';
+            }
+            // 전화번호 관련
+            else if (lowerHeader.includes('phone') || lowerHeader.includes('tel')) {
+                mapping[header] = '전화번호';
+            }
+            // 팩스 관련
+            else if (lowerHeader.includes('fax')) {
+                mapping[header] = '팩스';
+            }
+            // 이메일 관련
+            else if (lowerHeader.includes('email') || lowerHeader.includes('mail')) {
+                mapping[header] = '이메일';
+            }
+            // 웹사이트 관련
+            else if (lowerHeader.includes('website') || lowerHeader.includes('web')) {
+                mapping[header] = '웹사이트';
+            }
+            // 담당자 관련
+            else if (lowerHeader.includes('contact') && lowerHeader.includes('person')) {
+                mapping[header] = 'CONTACT_PERSON'; // 특별 처리
+            }
+            // 업종 관련
+            else if (lowerHeader.includes('industry') || lowerHeader.includes('sector')) {
+                mapping[header] = '업종';
+            }
+            // 제품 카테고리 관련
+            else if (lowerHeader.includes('product') && lowerHeader.includes('categories')) {
+                mapping[header] = '하위업종';
+            }
+            // 설명 관련
+            else if (lowerHeader.includes('description')) {
+                mapping[header] = '설명';
+            }
+            // 전시관 관련
+            else if (lowerHeader.includes('hall') || lowerHeader.includes('pavilion')) {
+                mapping[header] = '전시관';
+            }
+            // 지역/주 관련
+            else if (lowerHeader.includes('region') || lowerHeader.includes('state')) {
+                mapping[header] = '지역';
+            }
+            // 소셜미디어 관련
+            else if (lowerHeader.includes('social') && lowerHeader.includes('media')) {
+                mapping[header] = 'SOCIAL_MEDIA'; // 특별 처리
+            }
+            // 제품수 관련
+            else if (lowerHeader.includes('number') && lowerHeader.includes('products')) {
+                mapping[header] = '제품수';
+            }
+            // 회사ID 관련
+            else if (lowerHeader.includes('company') && lowerHeader.includes('id')) {
+                mapping[header] = '회사ID';
+            }
+        });
+        
+        console.log('\n필드 매핑 결과:');
+        Object.entries(mapping).forEach(([ambienteField, conxemarField]) => {
+            console.log(`  "${ambienteField}" ← "${conxemarField}"`);
+        });
+        
+        return mapping;
+    }
+
     // Conxemar 데이터를 Ambiente 양식으로 변환
     convertToAmbienteFormat() {
         if (!this.sourceData || this.sourceData.length === 0) {
             throw new Error('변환할 Conxemar 데이터가 없습니다.');
         }
 
+        const fieldMapping = this.createFieldMapping();
         const convertedData = this.sourceData.map((company, index) => {
-            return {
-                'Company Name': company['회사명'] || '',
-                'Stand Number': company['부스번호'] || '',
-                'Country': company['국가'] || '',
-                'City': company['도시'] || '',
-                'Address': company['주소'] || '',
-                'Postal Code': company['우편번호'] || '',
-                'Phone': company['전화번호'] || '',
-                'Fax': company['팩스'] || '',
-                'Email': company['이메일'] || '',
-                'Website': this.normalizeWebsite(company['웹사이트']),
-                'Contact Person': this.extractContactPerson(company['이메일']),
-                'Industry Sector': company['업종'] || '',
-                'Product Categories': company['하위업종'] || company['업종'] || '',
-                'Company Description': company['설명'] || '',
-                'Hall/Pavilion': company['전시관'] || '',
-                'Region/State': company['지역'] || company['구역'] || '',
-                'Social Media': this.combineSocialMedia(company),
-                'Number of Products': company['제품수'] || 0,
-                'Company ID': company['회사ID'] || ''
-            };
+            const mappedCompany = {};
+            
+            this.ambienteHeaders.forEach(header => {
+                if (!header) {
+                    mappedCompany[header] = '';
+                    return;
+                }
+                
+                let value = '';
+                const sourceField = fieldMapping[header];
+                
+                if (sourceField === 'CONTACT_PERSON') {
+                    // 연락담당자는 이메일에서 추출
+                    value = this.extractContactPerson(company['이메일']);
+                } else if (sourceField === 'SOCIAL_MEDIA') {
+                    // 소셜미디어는 통합
+                    value = this.combineSocialMedia(company);
+                } else if (sourceField && company[sourceField] !== undefined) {
+                    // 직접 매핑
+                    value = company[sourceField];
+                    
+                    // 웹사이트 정규화
+                    if (sourceField === '웹사이트') {
+                        value = this.normalizeWebsite(value);
+                    }
+                }
+                
+                // 값 후처리
+                if (typeof value === 'boolean') {
+                    value = value ? 'Y' : 'N';
+                } else if (value === null || value === undefined) {
+                    value = '';
+                } else {
+                    value = value.toString().trim();
+                }
+                
+                mappedCompany[header] = value;
+            });
+            
+            return mappedCompany;
         });
 
         console.log(`${convertedData.length}개 기업 데이터를 Ambiente 양식으로 변환 완료`);
@@ -149,6 +310,8 @@ class ConxemarToAmbienteFormatter {
 
             // 컬럼 너비 최적화
             const columnWidths = this.ambienteHeaders.map(header => {
+                if (!header) return { wch: 10 };
+                
                 const maxLength = Math.max(
                     header.length,
                     ...convertedData.map(row => (row[header] || '').toString().length)
@@ -157,8 +320,9 @@ class ConxemarToAmbienteFormatter {
             });
             worksheet['!cols'] = columnWidths;
 
-            // 시트 추가
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Exhibitor List');
+            // 시트 추가 (실제 양식의 시트명 사용)
+            const sheetName = this.actualTemplateHeaders ? 'Exhibitor List' : 'Exhibitor List';
+            XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
             // 파일 저장
             XLSX.writeFile(workbook, outputPath);
@@ -179,6 +343,7 @@ class ConxemarToAmbienteFormatter {
         }
 
         console.log('\n=== 변환 통계 ===');
+        console.log(`총 변환 기업 수: ${this.sourceData.length}`);
         
         // 국가별 분포
         const countryStats = {};
@@ -187,7 +352,7 @@ class ConxemarToAmbienteFormatter {
             countryStats[country] = (countryStats[country] || 0) + 1;
         });
         
-        console.log('\n국가별 기업 분포:');
+        console.log('\n국가별 기업 분포 (상위 10개):');
         Object.entries(countryStats)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)
@@ -211,7 +376,7 @@ class ConxemarToAmbienteFormatter {
             }
         });
 
-        console.log('\n업종별 기업 분포:');
+        console.log('\n업종별 기업 분포 (상위 10개):');
         Object.entries(sectorStats)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 10)
@@ -227,19 +392,45 @@ class ConxemarToAmbienteFormatter {
             withStand: this.sourceData.filter(c => c['부스번호'] && c['부스번호'].trim()).length
         };
 
-        console.log('\n데이터 품질:');
+        console.log('\n데이터 품질 지표:');
         console.log(`  이메일 보유: ${qualityStats.withEmail}개 (${(qualityStats.withEmail/this.sourceData.length*100).toFixed(1)}%)`);
         console.log(`  웹사이트 보유: ${qualityStats.withWebsite}개 (${(qualityStats.withWebsite/this.sourceData.length*100).toFixed(1)}%)`);
         console.log(`  전화번호 보유: ${qualityStats.withPhone}개 (${(qualityStats.withPhone/this.sourceData.length*100).toFixed(1)}%)`);
         console.log(`  부스번호 보유: ${qualityStats.withStand}개 (${(qualityStats.withStand/this.sourceData.length*100).toFixed(1)}%)`);
     }
 
+    // 필드 매핑 상태 확인
+    checkFieldMapping() {
+        const fieldMapping = this.createFieldMapping();
+        
+        console.log('\n=== 필드 매핑 확인 ===');
+        console.log(`기준 양식 헤더 수: ${this.ambienteHeaders.length}`);
+        console.log(`매핑된 필드 수: ${Object.keys(fieldMapping).length}`);
+        
+        // 매핑되지 않은 헤더 확인
+        const unmappedHeaders = this.ambienteHeaders.filter(header => 
+            header && !fieldMapping[header]
+        );
+        
+        if (unmappedHeaders.length > 0) {
+            console.log('\n⚠️  매핑되지 않은 헤더:');
+            unmappedHeaders.forEach(header => {
+                console.log(`  "${header}"`);
+            });
+        }
+        
+        return fieldMapping;
+    }
+
     // 메인 실행 함수
     async run() {
         try {
-            console.log('Conxemar → Ambiente 양식 변환을 시작합니다...\n');
+            console.log('🚀 Conxemar → Ambiente 2025 양식 변환을 시작합니다...\n');
             
-            // 데이터 로드 (엑셀 우선, 실패시 JSON)
+            // 1. 기준 양식 분석 (선택사항)
+            await this.analyzeTemplateFile();
+            
+            // 2. 데이터 로드 (엑셀 우선, 실패시 JSON)
             try {
                 await this.loadConxemarData();
             } catch {
@@ -247,17 +438,21 @@ class ConxemarToAmbienteFormatter {
                 await this.loadConxemarDataFromJSON();
             }
             
-            // 변환 통계 출력
+            // 3. 필드 매핑 확인
+            this.checkFieldMapping();
+            
+            // 4. 변환 통계 출력
             this.printConversionStats();
             
-            // Ambiente 양식으로 변환 및 저장
+            // 5. Ambiente 양식으로 변환 및 저장
             await this.generateAmbienteExcel();
             
             console.log('\n✅ 변환 완료!');
-            console.log('생성된 파일: conxemar_ambiente_format.xlsx');
+            console.log('📁 생성된 파일: conxemar_ambiente_format.xlsx');
+            console.log('\n💡 변환된 파일을 확인하시고, 필요시 필드 매핑을 조정해주세요.');
             
         } catch (error) {
-            console.error('변환 과정에서 오류 발생:', error.message);
+            console.error('❌ 변환 과정에서 오류 발생:', error.message);
         }
     }
 }
