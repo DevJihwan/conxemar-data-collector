@@ -2,12 +2,14 @@
   "name": "conxemar-data-collector",
   "version": "1.0.0",
   "description": "Conxemar 박람회 데이터 수집 및 Ambiente 양식 변환 도구",
-  "main": "conxemar_scraper.js",
+  "main": "main.js",
   "scripts": {
-    "start": "node conxemar_scraper.js",
+    "start": "node main.js",
     "collect": "node conxemar_scraper.js",
     "format": "node ambiente_formatter.js",
     "analyze": "node template_analyzer.js",
+    "workflow": "node main.js",
+    "help": "node main.js --help",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
@@ -23,7 +25,8 @@
     "excel",
     "api-scraping",
     "trade-show",
-    "data-transformation"
+    "data-transformation",
+    "automation"
   ],
   "author": "DevJihwan",
   "license": "MIT",
@@ -34,5 +37,8 @@
   "bugs": {
     "url": "https://github.com/DevJihwan/conxemar-data-collector/issues"
   },
-  "homepage": "https://github.com/DevJihwan/conxemar-data-collector#readme"
+  "homepage": "https://github.com/DevJihwan/conxemar-data-collector#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }
